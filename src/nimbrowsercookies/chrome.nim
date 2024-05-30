@@ -1,5 +1,6 @@
 # https://n8henrie.com/2014/05/decrypt-chrome-cookies-with-python/
 import std/[
+  os,
   osproc,
   strformat,
   strutils,
@@ -13,6 +14,10 @@ import pkg/nimtestcrypto
 export tables
 
 
+
+proc getDefaultChromeProfilePath*(): string {.inline.} =
+  # TODO: other oses
+  getEnv("HOME") / "Library" / "Application Support" / "Google" / "Chrome" / "Default"
 
 proc getChromePassword(): string =
   # TODO: native implementation
