@@ -1,12 +1,18 @@
+import std/[
+  os,
+]
+
 import nimbrowsercookies/[chrome, firefox, types]
 
 export chrome, firefox, types
 
 
 
-proc readCookies*(browser: Browser, dbFileName, host: string): StringTableRef =
+proc readCookies*(browser: Browser, profilePath, host: string): StringTableRef =
   case browser
   of Browser.FIREFOX:
-    readCookiesFromFirefox(dbFileName, host)
+    let dbFn = profilePath / "cookies.sqlite"
+    readCookiesFromFirefox(dbFn, host)
   of Browser.CHROME:
-    readCookiesFromChrome(dbFileName, host)
+    let dbFn = profilePath / "Cookies"
+    readCookiesFromChrome(dbFn, host)
