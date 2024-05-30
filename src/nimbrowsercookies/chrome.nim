@@ -25,6 +25,7 @@ proc getChromePassword(): string =
   execProcess(cmd).strip
 
 proc decryptValue(encrypted, pass: string): string =
+  if encrypted.len == 0: return
   let encrypted = encrypted[3 .. ^1]
 
   # TODO: other oses
@@ -45,7 +46,7 @@ proc readCookiesFromChrome*(dbFileName, host: string): StringTableRef =
   result = newStringTable()
   let db = open(dbFileName, "", "", "")
   for row in db.rows(
-    sql"SELECT name, encrypted_value FROM cookies WHERE host_key LIKE ? and length(encrypted_value) > 0",
+    sql"SELECT name, encrypted_value FROM cookies WHERE host_key LIKE ?",
     &"%{host}"
   ):
     result[row[0]] = decryptValue(row[1], pass)
