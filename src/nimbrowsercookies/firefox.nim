@@ -7,6 +7,8 @@ import std/[
 
 import db_connector/db_sqlite
 
+export tables
+
 
 
 proc readCookiesFromFirefox*(dbFileName: string, host: string): Table[string, string] =

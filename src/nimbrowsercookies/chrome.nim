@@ -10,6 +10,8 @@ import db_connector/db_sqlite
 
 import pkg/nimtestcrypto
 
+export tables
+
 
 
 proc getChromePassword(): string =
