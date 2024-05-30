@@ -1,17 +1,18 @@
 import std/[
   os,
   strformat,
-  tables,
+  strtabs,
   tempfiles,
 ]
 
 import db_connector/db_sqlite
 
-export tables
+export strtabs
 
 
 
-proc readCookiesFromFirefox*(dbFileName: string, host: string): Table[string, string] =
+proc readCookiesFromFirefox*(dbFileName, host: string): StringTableRef =
+  result = newStringTable()
   let (_, copyFn) = createTempfile("", ".sqlite")
   try:
     writeFile(copyFn, readFile(dbFileName))
@@ -24,3 +25,9 @@ proc readCookiesFromFirefox*(dbFileName: string, host: string): Table[string, st
     db.close
   finally:
     removeFile(copyFn)
+
+
+
+when isMainModule:
+  import std/cmdline
+  echo readCookiesFromFirefox(paramStr(1), paramStr(2))

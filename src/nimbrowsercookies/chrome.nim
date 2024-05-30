@@ -3,15 +3,15 @@ import std/[
   os,
   osproc,
   strformat,
+  strtabs,
   strutils,
-  tables,
 ]
 
 import db_connector/db_sqlite
 
 import pkg/nimtestcrypto
 
-export tables
+export strtabs
 
 
 
@@ -24,7 +24,7 @@ proc getChromePassword(): string =
   let cmd = "security find-generic-password -w -s \"Chrome Safe Storage\""
   execProcess(cmd).strip
 
-proc decryptValue(encrypted: string): string =
+proc decryptValue(encrypted, pass: string): string =
   let encrypted = encrypted[3 .. ^1]
 
   # TODO: other oses
@@ -32,20 +32,27 @@ proc decryptValue(encrypted: string): string =
   const keyLen = 16
   const iterations = 1003
 
-  let pass = getChromePassword()
-  if pass.len == 0:
-    raise newException(ValueError, "Failed to get chrome password")
-
   let key = pbkdf2(pass, salt, iterations, keyLen)
 
   let iv = " ".repeat(keyLen)
   result = aes.decrypt(encrypted, key, iv)
 
-proc readCookiesFromChrome*(dbFileName: string, host: string): Table[string, string] =
+proc readCookiesFromChrome*(dbFileName, host: string): StringTableRef =
+  let pass = getChromePassword()
+  if pass.len == 0:
+    raise newException(ValueError, "Failed to get chrome password")
+
+  result = newStringTable()
   let db = open(dbFileName, "", "", "")
-  for row in db.getAllRows(
-    sql"SELECT name, encrypted_value FROM cookies WHERE host_key LIKE ?",
+  for row in db.rows(
+    sql"SELECT name, encrypted_value FROM cookies WHERE host_key LIKE ? and length(encrypted_value) > 0",
     &"%{host}"
   ):
-    result[row[0]] = decryptValue(row[1])
+    result[row[0]] = decryptValue(row[1], pass)
   db.close
+
+
+
+when isMainModule:
+  import std/cmdline
+  echo readCookiesFromChrome(paramStr(1), paramStr(2))
