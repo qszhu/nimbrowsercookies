@@ -16,8 +16,12 @@ export strtabs
 
 
 proc getDefaultChromeProfilePath*(): string {.inline.} =
-  # TODO: other oses
-  getEnv("HOME") / "Library" / "Application Support" / "Google" / "Chrome" / "Default"
+  when defined linux:
+    getEnv("HOME") / ".config" / "google-chrome" / "Default"
+  elif defined macosx:
+    getEnv("HOME") / "Library" / "Application Support" / "Google" / "Chrome" / "Default"
+  else:
+    raise newException(ValueError, "Unsupported platform")
 
 proc getChromePassword(): string =
   # TODO: native implementation
@@ -26,12 +30,21 @@ proc getChromePassword(): string =
 
 proc decryptValue(encrypted, pass: string): string =
   if encrypted.len == 0: return
+
+  let passVer = encrypted[0 ..< 3]
+  if passVer != "v10":
+    raise newException(ValueError, "Unsupported password version: " & passVer)
+
   let encrypted = encrypted[3 .. ^1]
 
-  # TODO: other oses
   const salt = "saltysalt"
   const keyLen = 16
-  const iterations = 1003
+  when defined linux:
+    const iterations = 1
+  elif defined macosx:
+    const iterations = 1003
+  else:
+    raise newException(ValueError, "Unsupported platform")
 
   let key = pbkdf2(pass, salt, iterations, keyLen)
 
@@ -39,9 +52,14 @@ proc decryptValue(encrypted, pass: string): string =
   result = aes.decrypt(encrypted, key, iv)
 
 proc readCookiesFromChrome*(dbFileName, host: string): StringTableRef =
-  let pass = getChromePassword()
-  if pass.len == 0:
-    raise newException(ValueError, "Failed to get chrome password")
+  when defined linux:
+    let pass = "peanuts"
+  elif defined macosx:
+    let pass = getChromePassword()
+    if pass.len == 0:
+      raise newException(ValueError, "Failed to get chrome password")
+  else:
+    raise newException(ValueError, "Unsupported platform")
 
   result = newStringTable()
   let db = open(dbFileName, "", "", "")

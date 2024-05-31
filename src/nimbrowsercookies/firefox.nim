@@ -10,7 +10,7 @@ import db_connector/db_sqlite
 export strtabs
 
 
-
+# MacOS, Linux
 proc readCookiesFromFirefox*(dbFileName, host: string): StringTableRef =
   result = newStringTable()
   let (_, copyFn) = createTempfile("", ".sqlite")
