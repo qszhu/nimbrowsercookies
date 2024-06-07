@@ -1,77 +1,113 @@
 # https://n8henrie.com/2014/05/decrypt-chrome-cookies-with-python/
+
+
+
 import std/[
+  base64,
+  json,
   os,
-  osproc,
   strformat,
   strtabs,
-  strutils,
 ]
+
+when defined macosx:
+  import std/[
+    osproc,
+    strutils,
+  ]
 
 import db_connector/db_sqlite
 
 import pkg/nimtestcrypto
 
+import dpapi
+
 export strtabs
 
 
 
-proc getDefaultChromeProfilePath*(): string {.inline.} =
+proc getChromeDefaultProfilePath*(): string {.inline.} =
   when defined linux:
     getEnv("HOME") / ".config" / "google-chrome" / "Default"
   elif defined macosx:
     getEnv("HOME") / "Library" / "Application Support" / "Google" / "Chrome" / "Default"
+  elif defined windows:
+    getEnv("LOCALAPPDATA") / "Google" / "Chrome" / "User Data" / "Default"
   else:
     raise newException(ValueError, "Unsupported platform")
 
-proc getChromePassword(): string =
-  # TODO: native implementation
-  let cmd = "security find-generic-password -w -s \"Chrome Safe Storage\""
-  execProcess(cmd).strip
+proc getCookieFn*(profilePath: string): string {.inline.} =
+  when defined windows:
+    profilePath / "Network" / "Cookies"
+  else:
+    profilePath / "Cookies"
 
-proc decryptValue(encrypted, pass: string): string =
+proc getChromeKey(profilePath: string): string =
+  when defined linux:
+    return "peanuts"
+  elif defined macosx:
+    # TODO: native implementation
+    let cmd = "security find-generic-password -w -s \"Chrome Safe Storage\""
+    return execProcess(cmd).strip
+  elif defined windows:
+    let jso = readFile(profilePath / ".." / "Local State").parseJson
+    let key = jso["os_crypt"]["encrypted_key"].getStr.decode
+    doAssert key[0 ..< 5] == "DPAPI"
+    let decrypted = dpapi.decrypt(cast[seq[uint8]](key[5 .. ^1]))
+    let res = cast[string](decrypted)
+    return res[0 ..< res.len]
+  else:
+    raise newException(ValueError, "Unsupported platform")
+
+proc decryptValue(encrypted, key: string): string =
   if encrypted.len == 0: return
 
   let passVer = encrypted[0 ..< 3]
   if passVer != "v10":
     raise newException(ValueError, "Unsupported password version: " & passVer)
 
-  let encrypted = encrypted[3 .. ^1]
-
-  const salt = "saltysalt"
-  const keyLen = 16
+  var encrypted = encrypted[3 .. ^1]
   when defined linux:
     const iterations = 1
   elif defined macosx:
     const iterations = 1003
+  elif defined windows:
+    let nounce = encrypted[0 ..< 12]
+    encrypted = encrypted[12 .. ^1]
   else:
     raise newException(ValueError, "Unsupported platform")
 
-  let key = pbkdf2(pass, salt, iterations, keyLen)
-
-  let iv = " ".repeat(keyLen)
-  result = aes.decrypt(encrypted, key, iv)
-
-proc readCookiesFromChrome*(dbFileName, host: string): StringTableRef =
-  when defined linux:
-    let pass = "peanuts"
-  elif defined macosx:
-    let pass = getChromePassword()
-    if pass.len == 0:
-      raise newException(ValueError, "Failed to get chrome password")
+  when defined windows:
+    return cast[string](aes.decryptAES256GCM(
+      cast[seq[uint8]](encrypted),
+      cast[seq[uint8]](key),
+      cast[seq[uint8]](nounce)
+    ))
   else:
-    raise newException(ValueError, "Unsupported platform")
+    const salt = "saltysalt"
+    const keyLen = 16
+    let key = pbkdf2(key, salt, iterations, keyLen)
+    let iv = " ".repeat(keyLen)
+    return aes.decryptAES128CBC(encrypted, key, iv)
 
+proc readCookiesFromChrome*(profilePath, host: string): StringTableRef =
   result = newStringTable()
-  let db = open(dbFileName, "", "", "")
+  let key = getChromeKey(profilePath)
+  let dbFn = getCookieFn(profilePath)
+  echo dbFn
+  let db = open(dbFn, "", "", "")
   for row in db.rows(
     sql"SELECT name, encrypted_value FROM cookies WHERE host_key LIKE ?",
     &"%{host}"
   ):
-    result[row[0]] = decryptValue(row[1], pass)
+    result[row[0]] = decryptValue(row[1], key)
   db.close
+
 
 
 
 when isMainModule:
   import std/cmdline
-  echo readCookiesFromChrome(paramStr(1), paramStr(2))
+
+  for k, v in readCookiesFromChrome(paramStr(1), paramStr(2)):
+    echo (k, v)
