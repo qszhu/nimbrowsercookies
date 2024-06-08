@@ -100,7 +100,6 @@ proc readCookiesFromChrome*(profilePath, host: string): StringTableRef =
   result = newStringTable()
   let key = getChromeKey(profilePath)
   let dbFn = getCookieFn(profilePath)
-  echo dbFn
   let db = open(dbFn, "", "", "")
   for row in db.rows(
     sql"SELECT name, encrypted_value FROM cookies WHERE host_key LIKE ?",
