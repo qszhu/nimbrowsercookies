@@ -3,24 +3,26 @@
 
 
 import std/[
-  base64,
-  json,
   os,
   strformat,
   strtabs,
 ]
+
+import db_connector/db_sqlite
+
+import pkg/nimtestcrypto
 
 when defined macosx:
   import std/[
     osproc,
     strutils,
   ]
-
-import db_connector/db_sqlite
-
-import pkg/nimtestcrypto
-
-import dpapi
+elif defined windows:
+  import std/[
+    base64,
+    json,
+  ]
+  import dpapi
 
 export strtabs
 
@@ -72,7 +74,7 @@ proc decryptValue(encrypted, key: string): string =
   elif defined macosx:
     const iterations = 1003
   elif defined windows:
-    let nounce = encrypted[0 ..< 12]
+    let iv = encrypted[0 ..< 12]
     encrypted = encrypted[12 .. ^1]
   else:
     raise newException(ValueError, "Unsupported platform")
@@ -81,14 +83,18 @@ proc decryptValue(encrypted, key: string): string =
     return cast[string](aes.decryptAES256GCM(
       cast[seq[uint8]](encrypted),
       cast[seq[uint8]](key),
-      cast[seq[uint8]](nounce)
+      cast[seq[uint8]](iv)
     ))
   else:
     const salt = "saltysalt"
     const keyLen = 16
     let key = pbkdf2(key, salt, iterations, keyLen)
     let iv = " ".repeat(keyLen)
-    return aes.decryptAES128CBC(encrypted, key, iv)
+    return cast[string](aes.decryptAES128CBC(
+      cast[seq[uint8]](encrypted),
+      cast[seq[uint8]](key),
+      cast[seq[uint8]](iv)
+    ))
 
 proc readCookiesFromChrome*(profilePath, host: string): StringTableRef =
   result = newStringTable()
