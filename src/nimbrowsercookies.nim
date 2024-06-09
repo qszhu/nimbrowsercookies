@@ -1,6 +1,6 @@
-import nimbrowsercookies/[chromium, firefox, types]
+import nimbrowsercookies/[chromium, chrome, edge, firefox, types]
 
-export chromium, firefox, types
+export chromium, chrome, edge, firefox, types
 
 
 
