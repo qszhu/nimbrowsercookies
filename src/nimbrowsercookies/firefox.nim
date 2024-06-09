@@ -15,7 +15,7 @@ proc readCookiesFromFirefox*(dbFileName, host: string): StringTableRef =
   result = newStringTable()
   let (_, copyFn) = createTempfile("", ".sqlite")
   try:
-    writeFile(copyFn, readFile(dbFileName))
+    copyFile(dbFileName, copyFn)
     let db = open(copyFn, "", "", "")
     for row in db.getAllRows(
       sql"SELECT name, value FROM moz_cookies WHERE host LIKE ?",

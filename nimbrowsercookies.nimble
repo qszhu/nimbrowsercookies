@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.4.1"
+version       = "0.4.2"
 author        = "Qinsi ZHU"
 description   = "Read browser cookies"
 license       = "MIT"
