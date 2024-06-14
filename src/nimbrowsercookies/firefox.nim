@@ -11,11 +11,12 @@ export strtabs
 
 
 # MacOS, Linux
-proc readCookiesFromFirefox*(dbFileName, host: string): StringTableRef =
+proc readCookiesFromFirefox*(profilePath, host: string): StringTableRef =
   result = newStringTable()
+  let dbFn = profilePath / "cookies.sqlite"
   let (_, copyFn) = createTempfile("", ".sqlite")
   try:
-    copyFile(dbFileName, copyFn)
+    copyFile(dbFn, copyFn)
     let db = open(copyFn, "", "", "")
     for row in db.getAllRows(
       sql"SELECT name, value FROM moz_cookies WHERE host LIKE ?",
