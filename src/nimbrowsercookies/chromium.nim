@@ -15,9 +15,10 @@ import pkg/nimtestcrypto
 
 when defined macosx:
   import std/[
-    osproc,
+    base64,
     strutils,
   ]
+  import macos
 elif defined windows:
   import std/[
     base64,
@@ -39,9 +40,7 @@ proc getChromeKey(profilePath: string): string =
   when defined linux:
     return "peanuts"
   elif defined macosx:
-    # TODO: native implementation
-    let cmd = "security find-generic-password -w -s \"Chrome Safe Storage\""
-    return execProcess(cmd).strip
+    return base64.encode(getPassword("Chrome Safe Storage", "Chrome").get)
   elif defined windows:
     let jso = readFile(profilePath / ".." / "Local State").parseJson
     let key = jso["os_crypt"]["encrypted_key"].getStr.decode
