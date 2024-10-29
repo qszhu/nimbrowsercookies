@@ -98,7 +98,7 @@ proc readCookiesFromChromium*(profilePath, host: string): StringTableRef =
       sql"SELECT name, encrypted_value FROM cookies WHERE host_key LIKE ?",
       &"%{host}"
     ):
-      result[row[0]] = decryptValue(row[1], key)
+      result[row[0]] = decryptValue(row[1], key)[32 .. ^1]
     db.close
   finally:
     removeFile(copyFn)
